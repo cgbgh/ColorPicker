@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="16dp"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <com.app.cgb.colorpickerview.ColorPickerView
+            android:id="@+id/color_picker"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"/>
+
+        <com.app.cgb.colorpickerview.ColorPanel
+            android:id="@+id/color_panel"
+            android:layout_marginLeft="16dp"
+            android:layout_width="36dp"
+            android:layout_height="300dp" />
+    </LinearLayout>
+
+    <com.app.cgb.colorpickerview.AlphaSelectView
+        android:id="@+id/asv"
+        android:layout_marginTop="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="36dp" />
+
+</LinearLayout>
