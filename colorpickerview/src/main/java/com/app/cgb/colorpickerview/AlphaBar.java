@@ -16,7 +16,7 @@ import android.view.View;
  * Created by cgb on 2017/8/16.
  */
 
-public class AlphaSelectView extends View {
+public class AlphaBar extends View {
 
     private int curColor = Color.RED;
     private Paint paint;
@@ -28,16 +28,18 @@ public class AlphaSelectView extends View {
     private float selectorWidth = 8f;
     private float curX;
     private Paint borderPaint;
+    private OnColorChanged onColorChanged;
+    private int curAlphaColor;
 
-    public AlphaSelectView(Context context) {
+    public AlphaBar(Context context) {
         this(context, null);
     }
 
-    public AlphaSelectView(Context context, @Nullable AttributeSet attrs) {
+    public AlphaBar(Context context, @Nullable AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public AlphaSelectView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public AlphaBar(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
     }
@@ -63,16 +65,32 @@ public class AlphaSelectView extends View {
     public void setCurrentColor(int color) {
         curColor = color;
         curRed = (color >> 16) & 0xFF;
-        curBlue = (color >> 8) & 0xFF;
-        curGreen = color & 0xFF;
+        curGreen = (color >> 8) & 0xFF;
+        curBlue = color & 0xFF;
         invalidate();
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        drawPane(canvas);
+        drawPanel(canvas);
         drawBorder(canvas);
         drawSelector(canvas);
+        if (onColorChanged != null)
+            onColorChanged.onColorChanged(this, getColorByPosition(curX));
+    }
+
+    public int getCurrentColor() {
+        return curColor;
+    }
+
+    public int getCurrentAlphaColor() {
+        return curAlphaColor;
+    }
+
+    private int getColorByPosition(float x) {
+        int alpha = (int) ((1 - x / getWidth()) * 255);
+        curAlphaColor = Color.argb(alpha, curRed, curGreen, curBlue);
+        return curAlphaColor;
     }
 
     @Override
@@ -84,8 +102,8 @@ public class AlphaSelectView extends View {
     }
 
 
-    private void drawPane(Canvas canvas) {
-        RectF rect = new RectF(border/2, border/2, getWidth() - border/2, getHeight() - border/2);
+    private void drawPanel(Canvas canvas) {
+        RectF rect = new RectF(border / 2, border / 2, getWidth() - border / 2, getHeight() - border / 2);
         LinearGradient gradient = new LinearGradient(
                 rect.left, rect.top, rect.right, rect.top,
                 new int[]{curColor, Color.argb(0, curRed, curGreen, curBlue)},
@@ -94,13 +112,24 @@ public class AlphaSelectView extends View {
         canvas.drawRect(rect, paint);
     }
 
-    private void drawBorder(Canvas canvas){
+    private void drawBorder(Canvas canvas) {
         RectF rect = new RectF(0, 0, getWidth(), getHeight());
-        canvas.drawRect(rect,borderPaint);
+        canvas.drawRect(rect, borderPaint);
     }
 
     private void drawSelector(Canvas canvas) {
         RectF rect = new RectF(curX, 0, selectorWidth + curX, getHeight());
         canvas.drawRect(rect, selectorPaint);
+    }
+
+    public void setOnColorChanged(OnColorChanged onColorChanged) {
+        this.onColorChanged = onColorChanged;
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        if (onColorChanged != null)
+            onColorChanged = null;
     }
 }

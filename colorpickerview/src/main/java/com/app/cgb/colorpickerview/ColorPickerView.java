@@ -1,87 +1,51 @@
 package com.app.cgb.colorpickerview;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.ComposeShader;
-import android.graphics.LinearGradient;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.RectF;
-import android.graphics.Shader;
+import android.support.annotation.AttrRes;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
-import android.view.MotionEvent;
 import android.view.View;
+import android.widget.FrameLayout;
 
 /**
- * Created by cgb on 2017/8/16.
+ * Created by cgb on 2017/8/17.
  */
 
-public class ColorPickerView extends View {
+public class ColorPickerView extends FrameLayout implements OnColorChanged{
 
-    private static final int DEFAULT_PICKER_RADIUS = 12;
-    private int pickerRadius = DEFAULT_PICKER_RADIUS;
-    private Paint greyBorderPaint;
-    private Paint blackBorderPaint;
-    private Paint insetPaint;
-    private float cx;
-    private float cy;
-    private int pickerColor;
-    int redCur = 255;
-    int greenCur;
-    int blueCur;
-    private OnSelectChanged onSelectChanged;
+    private static final int DEFAULT_BAR_SIZE = 60;
+    private static final int DEFAULT_MARGIN = 20;
+    private ColorPanel colorPanel;
+    private AlphaBar alphaBar;
+    private ColorBar colorBar;
+    private OnColorChanged onColorChanged;
 
-    public ColorPickerView(Context context) {
-        this(context, null);
+    public ColorPickerView(@NonNull Context context) {
+        this(context,null);
     }
 
-    public ColorPickerView(Context context, @Nullable AttributeSet attrs) {
-        this(context, attrs, 0);
+    public ColorPickerView(@NonNull Context context, @Nullable AttributeSet attrs) {
+        this(context, attrs,0);
     }
 
-    public ColorPickerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public ColorPickerView(@NonNull Context context, @Nullable AttributeSet attrs, @AttrRes int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init();
+        init(context,attrs,defStyleAttr);
     }
 
-
-    public void init() {
-        greyBorderPaint = new Paint();
-        blackBorderPaint = new Paint();
-        insetPaint = new Paint();
-        greyBorderPaint.setAntiAlias(true);
-        greyBorderPaint.setStyle(Paint.Style.STROKE);
-        greyBorderPaint.setStrokeWidth(4);
-        greyBorderPaint.setColor(Color.GRAY);
-        blackBorderPaint.setAntiAlias(true);
-        blackBorderPaint.setStyle(Paint.Style.STROKE);
-        blackBorderPaint.setStrokeWidth(4);
-        blackBorderPaint.setColor(Color.WHITE);
-        insetPaint.setAntiAlias(true);
-        insetPaint.setStyle(Paint.Style.FILL);
-        post(new Runnable() {
-            @Override
-            public void run() {
-                cx = getWidth();
-            }
-        });
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        float x = event.getX();
-        float y = event.getY();
-        cx = Math.max(0,Math.min(x,getWidth()));
-        cy = Math.max(0,Math.min(y,getHeight()));
-        invalidate();
-        return true;
+    private void init(final Context context, AttributeSet attrs, int defStyleAttr) {
+        colorPanel = new ColorPanel(context);
+        colorBar = new ColorBar(context);
+        alphaBar = new AlphaBar(context);
+        colorPanel.setOnColorChanged(this);
+        colorBar.setOnColorChanged(this);
+        alphaBar.setOnColorChanged(this);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec,heightMeasureSpec);
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
         int size = Math.min(width, height);
@@ -90,57 +54,42 @@ public class ColorPickerView extends View {
         setMeasuredDimension(w, h);
     }
 
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        if (getChildCount() == 0) addComponent();
+        super.onLayout(changed, left, top, right, bottom);
+    }
+
+    private void addComponent() {
+        int size = getWidth() - getPaddingLeft() - getPaddingRight();
+        int panelSize = size - DEFAULT_BAR_SIZE - DEFAULT_MARGIN;
+        addView(colorPanel, new LayoutParams(panelSize, panelSize));
+        LayoutParams colorBarParams = new LayoutParams(DEFAULT_BAR_SIZE, panelSize);
+        colorBarParams.leftMargin = DEFAULT_MARGIN + panelSize;
+        addView(colorBar, colorBarParams);
+
+        LayoutParams alphaBarParams = new LayoutParams(size, DEFAULT_BAR_SIZE);
+        alphaBarParams.topMargin = DEFAULT_MARGIN + panelSize;
+        addView(alphaBar,alphaBarParams);
+    }
 
     @Override
-    protected void onDraw(Canvas canvas) {
-        drawPane(canvas);
-        drawPicker(canvas);
-        if (onSelectChanged != null) onSelectChanged.onSelectChanged(cx,cy);
+    public void onColorChanged(View view, int color) {
+        if (view instanceof ColorBar){
+            colorPanel.setCurrentColor(color);
+        }else if (view instanceof ColorPanel){
+            alphaBar.setCurrentColor(color);
+        }else if (view instanceof AlphaBar){
+            if (onColorChanged != null)
+                onColorChanged.onColorChanged(this,alphaBar.getCurrentAlphaColor());
+        }
     }
 
-    private void drawPane(Canvas canvas) {
-        RectF rectF = new RectF(0, 0, getWidth(), getWidth());
-        Paint paint = new Paint();
-        LinearGradient valShader = new LinearGradient(rectF.left, rectF.top, rectF.left, rectF.bottom, Color.WHITE, Color.BLACK, Shader.TileMode.MIRROR);
-        LinearGradient satShader = new LinearGradient(rectF.left, rectF.top, rectF.right, rectF.top, Color.WHITE, Color.rgb(redCur,greenCur,blueCur), Shader.TileMode.CLAMP);
-        ComposeShader composeShader = new ComposeShader(satShader, valShader, new PorterDuffXfermode(PorterDuff.Mode.MULTIPLY));
-        paint.setShader(composeShader);
-        canvas.drawRect(rectF, paint);
+    public int getCurrentColor(){
+        return alphaBar.getCurrentColor();
     }
 
-    private void drawPicker(Canvas canvas) {
-        canvas.drawCircle(cx, cy, pickerRadius + 4, greyBorderPaint);
-        canvas.drawCircle(cx, cy, pickerRadius, blackBorderPaint);
+    public void setOnColorChanged(OnColorChanged onColorChanged) {
+        this.onColorChanged = onColorChanged;
     }
-
-    public int getPickerColorByPosition(float x, float y) {
-        float hRatio = 1 - y / getWidth();
-        float wRatio = 1 - x / getWidth();
-        int red = (int) ((hRatio * 255 - hRatio * redCur) * wRatio + hRatio * redCur);
-        int green = (int) ((hRatio * 255 - hRatio * greenCur) * wRatio + hRatio * greenCur);
-        int blue = (int) ((hRatio * 255 - hRatio * blueCur) * wRatio + hRatio * blueCur);
-        int rgb = Color.rgb(red, green, blue);
-        return rgb;
-    }
-
-
-    public int getPickerColor() {
-        return pickerColor;
-    }
-
-    public void setCurrentColor(int curColor){
-        redCur = (curColor >> 16) & 0xFF;
-        greenCur = (curColor >> 8) & 0xFF;
-        blueCur = curColor & 0xFF;
-        invalidate();
-    }
-
-    public void setOnSelectChanged(OnSelectChanged onSelectChanged){
-        this.onSelectChanged = onSelectChanged;
-    }
-
-    public interface OnSelectChanged{
-        void onSelectChanged(float x, float y);
-    }
-
 }
